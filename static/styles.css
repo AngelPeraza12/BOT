@@ -644,3 +644,65 @@ input.input-vacio-alerta::placeholder {
   cursor: pointer;
   transition: background-color 0.15s, border-color 0.15s;
 }
+
+/* Visor enriquecido de Línea de Pago */
+.c14-wrapper {
+  position: relative;
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+.c14-wrapper .c14-box {
+  margin-bottom: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.c14-vista {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  pointer-events: none;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  z-index: 2;
+}
+
+.c14-input-real {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+/* Cuando tiene texto y NO está siendo editado, ocultamos el texto plano del input para ver los colores */
+.c14-wrapper.con-resalte:not(:focus-within) .c14-input-real {
+  color: transparent;
+  caret-color: currentColor;
+}
+
+/* Cuando haces clic para escribir, ocultamos la capa de colores y ves tu cursor normal */
+.c14-wrapper:focus-within .c14-vista,
+.c14-wrapper:not(.con-resalte) .c14-vista {
+  display: none;
+}
+
+.c14-resalte {
+  color: #38bdf8;
+  font-size: 1.25em;
+  font-weight: 800;
+  background: rgba(56, 189, 248, 0.14);
+  padding: 1px 6px;
+  border-radius: 5px;
+  line-height: 1.1;
+}
+
+body:not(.dark-mode) .c14-resalte {
+  color: #0284c7;
+  background: rgba(2, 132, 199, 0.12);
+}

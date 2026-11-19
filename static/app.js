@@ -68,6 +68,7 @@
       const el = $(id);
       if (el) el.value = '';
     });
+    renderizarVistaC14();
   }
 
   function bloquearCamposCase() {
@@ -81,22 +82,20 @@
   function parsearB9() {
     const raw = $('b9').value.trim();
 
-    // FORMATO 2: Trama APROBADO||PAGO 1 PL 9511446639 SEP 2026||91||K||SP9||2310501||8299||1599000
-    // Solo extrae Liq., Tipo, Concepto, CeCo, ICA y Valor (g13-g16 quedan exclusivos para CASE)
     if (raw.includes('||')) {
       const partes = raw.split('||').map((p) => p.trim());
       if (partes.length >= 3) {
-        if (partes[2] !== undefined) $('d15').value = partes[2]; // Liq.
-        if (partes[3] !== undefined) $('d16').value = partes[3]; // Tipo
-        if (partes[4] !== undefined) $('d17').value = partes[4]; // Concepto
+        if (partes[2] !== undefined) $('d15').value = partes[2];
+        if (partes[3] !== undefined) $('d16').value = partes[3];
+        if (partes[4] !== undefined) $('d17').value = partes[4];
         if (partes[5] !== undefined) {
-          $('d18').value = partes[5]; // CeCo
+          $('d18').value = partes[5];
           consultarCeco(partes[5]);
         }
-        if (partes[6] !== undefined) $('d19').value = partes[6]; // ICA
+        if (partes[6] !== undefined) $('d19').value = partes[6];
         if (partes[7] !== undefined && partes[7] !== '') {
           const valNum = parsearNumero(partes[7]);
-          $('c27').value = formatearCOP(valNum, 0); // Valor Solicitud
+          $('c27').value = formatearCOP(valNum, 0);
         }
 
         recalcularTodo();
@@ -104,7 +103,6 @@
       }
     }
 
-    // FORMATO 1: Texto FORMULA DE LIQUIDACIÓN: 91 - SIN IVA ...
     const txt = raw.toUpperCase();
     const mLiq  = txt.match(/FORMULA\s+DE\s+LIQUIDACI[ÓO]N:\s*([A-Z0-9]+)/);
     const mTipo = txt.match(/TIPO:\s*([A-Z0-9]+)/);
@@ -159,7 +157,6 @@
     const caseId = $('f11').value.trim();
     const status = $('dbStatus');
 
-    // Sin CASE nunca se llenan N° Pago, PL, Mes ni Año
     if (!caseId) {
       limpiarDatosCase();
       recalcularTodo();
@@ -193,7 +190,6 @@
         $('metaArchivo').innerText = data.archivo || '';
         $('metaBanner').style.display = 'flex';
 
-        // Estos 4 campos siempre provienen exclusivamente del CASE
         $('g13').value = data.pago || '';
         $('g14').value = data.pl || '';
         $('g15').value = data.mes || '';
@@ -210,7 +206,6 @@
         }
         valorNum = isNaN(valorNum) ? 0 : valorNum;
 
-        // Si el CASE trae valor en Excel, lo asigna (si es 0 y ya venía un valor en la trama, lo respeta)
         if (valorNum > 0 || !parsearNumero($('c27').value)) {
           $('c27').value = formatearCOP(valorNum, 0);
         }
@@ -238,6 +233,7 @@
     modoC14 = opcion;
     $('btnModoNum').classList.toggle('active', opcion === 'NUMERO');
     $('btnModoFin').classList.toggle('active', opcion === 'FINAL');
+    $('btnModoUni').classList.toggle('active', opcion === 'UNICO');
     actualizarLineasPago();
     recalcularTodo();
   }
@@ -250,6 +246,7 @@
 
     if (!pago && !pl) {
       $('c14').value = '';
+      renderizarVistaC14();
       return;
     }
 
@@ -258,15 +255,56 @@
       .toUpperCase()
       .slice(0, 3);
 
-    const prefijo = (modoC14 === 'FINAL') ? 'PAGO FINAL' : `PAGO ${pago}`;
+    let prefijo = `PAGO ${pago}`;
+    if (modoC14 === 'FINAL') prefijo = 'PAGO FINAL';
+    if (modoC14 === 'UNICO') prefijo = 'PAGO UNICO';
+
     $('c14').value = `${prefijo} PL ${pl} ${mesAbrev} ${anio}`.replace(/\s+/g, ' ').trim();
+    renderizarVistaC14();
+  }
+
+  function renderizarVistaC14() {
+    const visor = $('c14Vista');
+    const wrapper = visor ? visor.parentElement : null;
+    if (!visor || !wrapper) return;
+
+    const texto = $('c14').value.trim().toUpperCase();
+    if (!texto) {
+      visor.innerHTML = '';
+      wrapper.classList.remove('con-resalte');
+      return;
+    }
+
+    const match = texto.match(/^PAGO\s+(FINAL|UNICO|\d+)\s+PL\s+([A-Z0-9-]+?)\s+([A-ZÁÉÍÓÚÑ]{3})\s+(\d{4})$/i);
+
+    if (match) {
+      const numPago = match[1];
+      const plCompleta = match[2];
+      const mes = match[3];
+      const anio = match[4];
+
+      const plInicio = plCompleta.length > 4 ? plCompleta.slice(0, -4) : '';
+      const plUltimos4 = plCompleta.slice(-4);
+
+      visor.innerHTML = `
+        <span>PAGO</span>
+        <span class="c14-resalte">${numPago}</span>
+        <span>PL</span>
+        <span>${plInicio}<span class="c14-resalte">${plUltimos4}</span></span>
+        <span class="c14-resalte">${mes}</span>
+        <span>${anio}</span>
+      `;
+      wrapper.classList.add('con-resalte');
+    } else {
+      visor.innerHTML = '';
+      wrapper.classList.remove('con-resalte');
+    }
   }
 
   // --- Validaciones de Campos y Reglas de Negocio ---
   function validarReglasCampos(mostrarMensaje = false) {
     let errores = [];
 
-    // 1. CeCo (d18): siempre debe contener exactamente 7 dígitos numéricos
     const elCeco = $('d18');
     if (elCeco) {
       elCeco.value = elCeco.value.replace(/\D/g, '').slice(0, 7);
@@ -275,7 +313,6 @@
       if (!cecoValido) errores.push({ id: 'd18', msg: 'CeCo debe tener exactamente 7 dígitos' });
     }
 
-    // 2. Concepto (d17): siempre debe tener exactamente 3 caracteres
     const elConcepto = $('d17');
     if (elConcepto) {
       elConcepto.value = elConcepto.value.replace(/\s/g, '').toUpperCase().slice(0, 3);
@@ -284,10 +321,11 @@
       if (!conceptoValido) errores.push({ id: 'd17', msg: 'Concepto debe tener exactamente 3 caracteres' });
     }
 
-    // 3. N° Pago (g13), Planilla (g14), Mes (g15) y Año (g16): EXCLUSIVOS de búsqueda por CASE
     const hayCase = $('f11') && $('f11').value.trim() !== '';
     if (!hayCase) {
-      limpiarDatosCase();
+      ['g13', 'g14', 'g15', 'g16'].forEach((id) => {
+        if ($(id)) $(id).value = '';
+      });
     }
 
     ['g13', 'g14', 'g15', 'g16'].forEach((id) => {
@@ -375,7 +413,8 @@
     if ($('resDescuento')) $('resDescuento').innerText = desc > 0 ? `- $ ${formatearCOP(desc)}` : '$ 0';
     if ($('resResultado')) $('resResultado').innerText = `$ ${formatearCOP(neto)}`;
 
-    const c14 = $('c14').value.trim();
+    const c14 = $('c14').value.trim().toUpperCase();
+    renderizarVistaC14();
     const d15 = $('d15').value.trim();
     const d16 = $('d16').value.trim();
     const d17 = $('d17').value.trim();
@@ -419,6 +458,7 @@
     $('btnExec').addEventListener('click', ejecutarProceso);
     $('btnModoNum').addEventListener('click', () => setModo('NUMERO'));
     $('btnModoFin').addEventListener('click', () => setModo('FINAL'));
+    $('btnModoUni').addEventListener('click', () => setModo('UNICO'));
     $('btnCopy').addEventListener('click', copiarGenerada);
     $('btnClear').addEventListener('click', borrarTodo);
 
@@ -436,7 +476,6 @@
       });
     });
 
-    // Si borran el CASE, siempre se limpian N° Pago, PL, Mes y Año
     $('f11').addEventListener('input', () => {
       if (!$('f11').value.trim()) {
         limpiarDatosCase();
