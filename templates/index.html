@@ -22,7 +22,7 @@
   <!-- Paso 1: Entradas y Botón Ejecutar -->
   <section class="card">
     <p class="card-title">1. Datos de Entrada</p>
-    <div class="input-row">
+    <div class="input-row" style="grid-template-columns: 1fr 160px auto;">
       <div>
         <label id="lblB9" for="b9">Fórmula de Liquidación (Web Central de Pagos)</label>
         <input type="text" id="b9" placeholder="Pega aquí: FORMULA DE LIQUIDACIÓN: 91 - SIN IVA ... , TIPO: K ...">
@@ -30,14 +30,6 @@
       <div>
         <label for="f11">CASE (ID de Carga)</label>
         <input type="text" id="f11" class="input-case" placeholder="Ej: 887818">
-      </div>
-      <div>
-        <label for="b21">Estado</label>
-        <select id="b21">
-          <option value="BOT">BOT</option>
-          <option value="MANUAL">MANUAL</option>
-          <option value="SINBOT">SINBOT</option>
-        </select>
       </div>
       <div>
         <button type="button" id="btnExec" class="btn-exec">▶ Ejecutar</button>
@@ -65,23 +57,24 @@
         <div class="toggle-group">
           <button type="button" id="btnModoNum" class="toggle-btn active">PAGO N°</button>
           <button type="button" id="btnModoFin" class="toggle-btn">PAGO FINAL</button>
+          <button type="button" id="btnModoUni" class="toggle-btn">PAGO UNICO</button>
         </div>
       </div>
 
       <input type="text" id="c14" class="c14-box" placeholder="PAGO 9 PL 96794424 OCT 2026">
 
       <div class="mini-grid-4">
-        <div><label for="g13">N° Pago</label><input type="text" id="g13" placeholder="9"></div>
-        <div><label for="g14">Planilla (PL)</label><input type="text" id="g14" placeholder="96794424"></div>
-        <div><label for="g15">Mes</label><input type="text" id="g15" placeholder="Octubre"></div>
-        <div><label for="g16">Año</label><input type="text" id="g16" placeholder="2026"></div>
+        <div><label for="g13">N° Pago</label><input type="text" id="g13" readonly placeholder="CASE"></div>
+        <div><label for="g14">Planilla (PL)</label><input type="text" id="g14" readonly placeholder="CASE"></div>
+        <div><label for="g15">Mes</label><input type="text" id="g15" readonly placeholder="CASE"></div>
+        <div><label for="g16">Año</label><input type="text" id="g16" readonly placeholder="CASE"></div>
       </div>
 
       <div class="mini-grid-5">
         <div><label for="d15">Liq.</label><input type="text" id="d15" placeholder="91"></div>
         <div><label for="d16">Tipo</label><input type="text" id="d16" placeholder="K"></div>
-        <div><label for="d17">Concepto</label><input type="text" id="d17" placeholder="KS8"></div>
-        <div><label for="d18">CeCo</label><input type="text" id="d18" placeholder="2111503"></div>
+        <div><label for="d17">Concepto</label><input type="text" id="d17" maxlength="3" placeholder="KS8"></div>
+        <div><label for="d18">CeCo</label><input type="text" id="d18" maxlength="7" placeholder="2111503"></div>
         <div><label for="d19">ICA</label><input type="text" id="d19" placeholder="74902"></div>
       </div>
 
@@ -97,15 +90,14 @@
       <p class="card-title">3. Validación de Valores</p>
       <div class="fin-row">
         <div>
-          <label for="c27">Valor Solicitud ($)</label>
+          <label for="c27">Valor Solicitud</label>
           <input type="text" id="c27" class="input-money" placeholder="0">
         </div>
         <div>
-          <label for="c28">Descuentos ($)</label>
-          <div class="desc-group">
-            <input type="text" id="c28" class="input-money" placeholder="0">
-            <button type="button" id="btnPreset499" class="btn-preset" title="Aplicar descuento de $499.000">499.000</button>
-            <button type="button" id="btnAplicarSS" class="btn-preset" title="Aplicar suma de Salud + Pensión">Aplicar SS</button>
+          <label for="c28">Descuentos</label>
+          <div style="display: flex; gap: 6px; align-items: center;">
+            <input type="text" id="c28" class="input-money" placeholder="0" style="flex: 1; min-width: 0;">
+            <button type="button" id="btnPreset499" class="btn-sec" style="white-space: nowrap;">499.000</button>
           </div>
         </div>
       </div>
@@ -122,18 +114,17 @@
       </div>
 
       <details open>
-        <summary>Herramientas auxiliares (Tarifas ICA / Salud y Pensión)</summary>
+        <summary>Desglose de Liquidación / Salud y Pensión</summary>
         <div class="aux-grid">
           <table class="aux-table">
-            <tr><td>0,00766</td><td id="c33">0</td></tr>
-            <tr><td>0,00966</td><td id="c34">0</td></tr>
-            <tr><td>0,00414</td><td id="c35">0</td></tr>
-            <tr><td class="muted-cell">32 UVT Max</td><td>1.675.968</td></tr>
+            <tr><td class="muted-cell">Valor Solicitud</td><td id="resSolicitud"> 0</td></tr>
+            <tr><td class="muted-cell">(-) Descuento</td><td id="resDescuento"> 0</td></tr>
+            <tr><td><strong>Valor Resultado</strong></td><td><strong id="resResultado"> 0</strong></td></tr>
           </table>
           <div>
-            <label for="g27">Salud ($)</label>
+            <label for="g27">Salud</label>
             <input type="text" id="g27" class="input-ss" placeholder="0">
-            <label for="g28">Pensión ($)</label>
+            <label for="g28">Pensión</label>
             <input type="text" id="g28" class="input-ss" placeholder="0">
             <div class="ss-total">
               Total SS: <span id="g29">0</span>
@@ -160,6 +151,8 @@
   <div class="app-credits">
     Creado por <strong>Angel Alonso Peraza Gutierrez</strong> · 2026 · Prueba BOT UNAL
   </div>
+
+</div>
 
 <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>

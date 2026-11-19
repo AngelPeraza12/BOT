@@ -3,19 +3,9 @@
 
   const CONFIG = {
     descuentoFijo: 499000,
-    tarifasIca: {
-      t1: 0.00766,
-      t2: 0.00966,
-      t3: 0.00414
-    },
     camposObligatorios: [
-      'g13', 'g14', 'g15', 'g16', // N° Pago, Planilla, Mes, Año
+      'g13', 'g14', 'g15', 'g16', // N° Pago, Planilla, Mes, Año (Exclusivos de CASE)
       'd15', 'd16', 'd17', 'd18', 'd19' // Liq., Tipo, Concepto, CeCo, ICA
-    ],
-    camposEditables: [
-      'c14', 'g13', 'g14', 'g15', 'g16',
-      'd15', 'd16', 'd17', 'd18', 'd19',
-      'c27', 'c28', 'g27', 'g28'
     ],
     tiposContratoRojo: ['ODC', 'OSU', 'OUF', 'ODO', 'OEF', 'OCO', 'OFC', 'OCA', 'OOF', 'OFO'],
     tiposContratoEstampilla: ['OCO', 'OFO']
@@ -56,33 +46,6 @@
     $('btnTheme').innerText = esOscuro ? '☀️ Papel Suave' : '🌙 Modo Noche';
   }
 
-  // --- Gestión de Estado (BOT / MANUAL / SINBOT) ---
-  function actualizarModoEstado() {
-    const estado = $('b21').value;
-    const lbl = $('lblB9');
-    const inp = $('b9');
-
-    CONFIG.camposEditables.forEach((id) => {
-      $(id).disabled = false;
-    });
-
-    if (estado === 'MANUAL') {
-      inp.value = '';
-      inp.disabled = true;
-      lbl.innerText = 'Entrada Automática (Desactivada en modo MANUAL)';
-      inp.placeholder = 'Desactivado en modo MANUAL — Ingresa cada valor abajo';
-      $('g13').focus();
-    } else if (estado === 'SINBOT') {
-      inp.disabled = false;
-      lbl.innerText = 'Trama SINBOT (Estructura APROBADO||PAGO...)';
-      inp.placeholder = 'Pega aquí: APROBADO||PAGO 9 PL 96794424 OCT 2026||91||K||KS8||2111503||74902||4500000';
-    } else {
-      inp.disabled = false;
-      lbl.innerText = 'Fórmula de Liquidación (Web Central de Pagos)';
-      inp.placeholder = 'Pega aquí: FORMULA DE LIQUIDACIÓN: 91 - SIN IVA ... , TIPO: K ...';
-    }
-  }
-
   // --- Validación Visual de Contrato ---
   function actualizarVistaContrato(contratoRaw) {
     const contrato = String(contratoRaw || '').trim();
@@ -99,48 +62,41 @@
     estampillaEl.style.display = tieneEstampilla ? 'inline-block' : 'none';
   }
 
-  // --- Parseo de Entrada Principal (BOT o SINBOT) ---
-  function parsearB9() {
-    const estado = $('b21').value;
-    if (estado === 'MANUAL') return;
+  // --- Limpieza y bloqueo de datos exclusivos de CASE ---
+  function limpiarDatosCase() {
+    ['g13', 'g14', 'g15', 'g16', 'c14'].forEach((id) => {
+      const el = $(id);
+      if (el) el.value = '';
+    });
+  }
 
+  function bloquearCamposCase() {
+    ['g13', 'g14', 'g15', 'g16'].forEach((id) => {
+      const el = $(id);
+      if (el) el.readOnly = true;
+    });
+  }
+
+  // --- Parseo Dual de b9 (NUNCA llena N° Pago, PL, Mes ni Año) ---
+  function parsearB9() {
     const raw = $('b9').value.trim();
 
-    if (estado === 'SINBOT' || raw.includes('||')) {
+    // FORMATO 2: Trama APROBADO||PAGO 1 PL 9511446639 SEP 2026||91||K||SP9||2310501||8299||1599000
+    // Solo extrae Liq., Tipo, Concepto, CeCo, ICA y Valor (g13-g16 quedan exclusivos para CASE)
+    if (raw.includes('||')) {
       const partes = raw.split('||').map((p) => p.trim());
-      if (partes.length >= 2) {
-        const lineaPago = partes[1] || '';
-        $('c14').value = lineaPago;
-
-        const mPago = lineaPago.match(/^PAGO\s+(FINAL|\d+)\s+PL\s+([A-Z0-9-]+)\s+([A-ZÁÉÍÓÚÑ]+)\s+(\d{4})/i);
-        if (mPago) {
-          if (mPago[1].toUpperCase() === 'FINAL') {
-            modoC14 = 'FINAL';
-            $('btnModoNum').classList.remove('active');
-            $('btnModoFin').classList.add('active');
-            $('g13').value = 'FINAL';
-          } else {
-            modoC14 = 'NUMERO';
-            $('btnModoNum').classList.add('active');
-            $('btnModoFin').classList.remove('active');
-            $('g13').value = mPago[1];
-          }
-          $('g14').value = mPago[2];
-          $('g15').value = mPago[3].toUpperCase();
-          $('g16').value = mPago[4];
-        }
-
-        if (partes[2] !== undefined) $('d15').value = partes[2];
-        if (partes[3] !== undefined) $('d16').value = partes[3];
-        if (partes[4] !== undefined) $('d17').value = partes[4];
+      if (partes.length >= 3) {
+        if (partes[2] !== undefined) $('d15').value = partes[2]; // Liq.
+        if (partes[3] !== undefined) $('d16').value = partes[3]; // Tipo
+        if (partes[4] !== undefined) $('d17').value = partes[4]; // Concepto
         if (partes[5] !== undefined) {
-          $('d18').value = partes[5];
+          $('d18').value = partes[5]; // CeCo
           consultarCeco(partes[5]);
         }
-        if (partes[6] !== undefined) $('d19').value = partes[6];
+        if (partes[6] !== undefined) $('d19').value = partes[6]; // ICA
         if (partes[7] !== undefined && partes[7] !== '') {
           const valNum = parsearNumero(partes[7]);
-          $('c27').value = formatearCOP(valNum, 0);
+          $('c27').value = formatearCOP(valNum, 0); // Valor Solicitud
         }
 
         recalcularTodo();
@@ -148,6 +104,7 @@
       }
     }
 
+    // FORMATO 1: Texto FORMULA DE LIQUIDACIÓN: 91 - SIN IVA ...
     const txt = raw.toUpperCase();
     const mLiq  = txt.match(/FORMULA\s+DE\s+LIQUIDACI[ÓO]N:\s*([A-Z0-9]+)/);
     const mTipo = txt.match(/TIPO:\s*([A-Z0-9]+)/);
@@ -197,32 +154,17 @@
   }
 
   async function ejecutarProceso() {
-    const estado = $('b21').value;
-    if (estado !== 'MANUAL') {
-      parsearB9();
-    }
+    parsearB9();
 
-    const rawB9 = $('b9').value.trim();
     const caseId = $('f11').value.trim();
     const status = $('dbStatus');
 
-    if ((estado === 'SINBOT' || rawB9.includes('||')) && !caseId) {
-      status.className = 'status-pill status-ok';
-      status.innerText = '✅ Trama SINBOT cargada y validada';
-      validarCamposObligatorios(true); // <-- 1. Aquí (si falta algún campo en SINBOT)
-      return;
-    }
-
+    // Sin CASE nunca se llenan N° Pago, PL, Mes ni Año
     if (!caseId) {
-      if (estado === 'MANUAL') {
-        recalcularTodo();
-        status.className = 'status-pill status-ok';
-        status.innerText = '✅ Modo MANUAL actualizado';
-        validarCamposObligatorios(true); // <-- 2. Aquí (si falta algún campo en MANUAL)
-        return;
-      }
+      limpiarDatosCase();
+      recalcularTodo();
       status.className = 'status-pill status-err';
-      status.innerText = '⚠️ Ingresa un número de CASE (ID de Carga)';
+      status.innerText = '⚠️ Ingresa un número de CASE para cargar N° Pago, PL, Mes y Año';
       $('f11').focus();
       return;
     }
@@ -235,6 +177,8 @@
       const data = await resp.json();
 
       if (data.error) {
+        limpiarDatosCase();
+        recalcularTodo();
         status.className = 'status-pill status-err';
         status.innerText = `⚠️ ${data.error}`;
         return;
@@ -249,37 +193,43 @@
         $('metaArchivo').innerText = data.archivo || '';
         $('metaBanner').style.display = 'flex';
 
-        if (!rawB9.includes('||')) {
-          $('g13').value = data.pago;
-          $('g14').value = data.pl;
-          $('g15').value = data.mes;
-          $('g16').value = data.anio;
+        // Estos 4 campos siempre provienen exclusivamente del CASE
+        $('g13').value = data.pago || '';
+        $('g14').value = data.pl || '';
+        $('g15').value = data.mes || '';
+        $('g16').value = data.anio || '';
 
-          const rawVal = String(data.valor || '0').trim();
-          let valorNum = 0;
-          if (rawVal.includes(',') && rawVal.includes('.')) {
-            valorNum = parseFloat(rawVal.replace(/\./g, '').replace(',', '.'));
-          } else if (rawVal.includes(',')) {
-            valorNum = parseFloat(rawVal.replace(',', '.'));
-          } else {
-            valorNum = parseFloat(rawVal);
-          }
-          valorNum = isNaN(valorNum) ? 0 : valorNum;
+        const rawVal = String(data.valor || '0').trim();
+        let valorNum = 0;
+        if (rawVal.includes(',') && rawVal.includes('.')) {
+          valorNum = parseFloat(rawVal.replace(/\./g, '').replace(',', '.'));
+        } else if (rawVal.includes(',')) {
+          valorNum = parseFloat(rawVal.replace(',', '.'));
+        } else {
+          valorNum = parseFloat(rawVal);
+        }
+        valorNum = isNaN(valorNum) ? 0 : valorNum;
 
+        // Si el CASE trae valor en Excel, lo asigna (si es 0 y ya venía un valor en la trama, lo respeta)
+        if (valorNum > 0 || !parsearNumero($('c27').value)) {
           $('c27').value = formatearCOP(valorNum, 0);
-          actualizarLineasPago();
         }
 
+        actualizarLineasPago();
         recalcularTodo();
-        validarCamposObligatorios(true); // <-- 3. Aquí (solo cuando data.encontrado es true)
+        validarCamposObligatorios(true);
       } else {
+        limpiarDatosCase();
+        recalcularTodo();
         status.className = 'status-pill status-err';
         status.innerText = `❌ CASE ${caseId} no encontrado en el Excel`;
         $('metaBanner').style.display = 'none';
       }
     } catch {
+      limpiarDatosCase();
+      recalcularTodo();
       status.className = 'status-pill status-err';
-      status.innerText = '⚠️ Sin conexión con app.py (Verifica que esté corriendo en VSC)';
+      status.innerText = '⚠️ Sin conexión con app.py (Verifica que esté corriendo)';
     }
   }
 
@@ -298,7 +248,10 @@
     const mesRaw = $('g15').value.trim();
     const anio = $('g16').value.trim();
 
-    if (!pago && !pl) return;
+    if (!pago && !pl) {
+      $('c14').value = '';
+      return;
+    }
 
     const mesAbrev = mesRaw
       .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
@@ -308,6 +261,63 @@
     const prefijo = (modoC14 === 'FINAL') ? 'PAGO FINAL' : `PAGO ${pago}`;
     $('c14').value = `${prefijo} PL ${pl} ${mesAbrev} ${anio}`.replace(/\s+/g, ' ').trim();
   }
+
+  // --- Validaciones de Campos y Reglas de Negocio ---
+  function validarReglasCampos(mostrarMensaje = false) {
+    let errores = [];
+
+    // 1. CeCo (d18): siempre debe contener exactamente 7 dígitos numéricos
+    const elCeco = $('d18');
+    if (elCeco) {
+      elCeco.value = elCeco.value.replace(/\D/g, '').slice(0, 7);
+      const cecoValido = /^\d{7}$/.test(elCeco.value);
+      elCeco.classList.toggle('input-vacio-alerta', !cecoValido);
+      if (!cecoValido) errores.push({ id: 'd18', msg: 'CeCo debe tener exactamente 7 dígitos' });
+    }
+
+    // 2. Concepto (d17): siempre debe tener exactamente 3 caracteres
+    const elConcepto = $('d17');
+    if (elConcepto) {
+      elConcepto.value = elConcepto.value.replace(/\s/g, '').toUpperCase().slice(0, 3);
+      const conceptoValido = elConcepto.value.length === 3;
+      elConcepto.classList.toggle('input-vacio-alerta', !conceptoValido);
+      if (!conceptoValido) errores.push({ id: 'd17', msg: 'Concepto debe tener exactamente 3 caracteres' });
+    }
+
+    // 3. N° Pago (g13), Planilla (g14), Mes (g15) y Año (g16): EXCLUSIVOS de búsqueda por CASE
+    const hayCase = $('f11') && $('f11').value.trim() !== '';
+    if (!hayCase) {
+      limpiarDatosCase();
+    }
+
+    ['g13', 'g14', 'g15', 'g16'].forEach((id) => {
+      const el = $(id);
+      if (!el) return;
+      const vacio = el.value.trim() === '';
+      el.classList.toggle('input-vacio-alerta', vacio);
+      if (vacio && !errores.some((e) => e.msg.startsWith('Consulta un CASE'))) {
+        errores.push({
+          id: 'f11',
+          msg: 'Consulta un CASE válido para llenar N° Pago, PL, Mes y Año'
+        });
+      }
+    });
+
+    if (mostrarMensaje && errores.length > 0) {
+      const status = $('dbStatus');
+      status.className = 'status-pill status-err';
+      status.innerText = `⚠️ ${errores[0].msg}`;
+      if ($(errores[0].id) && !$(errores[0].id).readOnly) {
+        $(errores[0].id).focus();
+      } else if ($('f11')) {
+        $('f11').focus();
+      }
+      return false;
+    }
+
+    return errores.length === 0;
+  }
+
   function validarCamposObligatorios(mostrarAlerta = false) {
     let faltantes = [];
 
@@ -329,11 +339,15 @@
       const nombres = faltantes.map((f) => f.nombre).join(', ');
       status.className = 'status-pill status-err';
       status.innerText = `⚠️ Faltan campos obligatorios: ${nombres}`;
-      $(faltantes[0].id).focus();
+      if (!$(faltantes[0].id).readOnly) {
+        $(faltantes[0].id).focus();
+      } else if ($('f11')) {
+        $('f11').focus();
+      }
       return false;
     }
 
-    return faltantes.length === 0;
+    return validarReglasCampos(mostrarAlerta);
   }
 
   function aplicarTotalSS() {
@@ -350,16 +364,16 @@
     const g28 = parsearNumero($('g28').value);
     $('g29').innerText = formatearCOP(g27 + g28);
 
-    const sol = parsearNumero($('c27').value);
-    const desc = parsearNumero($('c28').value);
+    const sol = Math.round(parsearNumero($('c27').value));
+    const desc = Math.round(parsearNumero($('c28').value));
     const neto = Math.round(sol - desc);
 
     $('c20').innerText = `$ ${formatearCOP(neto)}`;
     $('d20').innerText = neto;
 
-    $('c33').innerText = formatearCOP(Math.round(neto * CONFIG.tarifasIca.t1));
-    $('c34').innerText = formatearCOP(Math.round(neto * CONFIG.tarifasIca.t2));
-    $('c35').innerText = formatearCOP(Math.round(neto * CONFIG.tarifasIca.t3));
+    if ($('resSolicitud')) $('resSolicitud').innerText = `$ ${formatearCOP(sol)}`;
+    if ($('resDescuento')) $('resDescuento').innerText = desc > 0 ? `- $ ${formatearCOP(desc)}` : '$ 0';
+    if ($('resResultado')) $('resResultado').innerText = `$ ${formatearCOP(neto)}`;
 
     const c14 = $('c14').value.trim();
     const d15 = $('d15').value.trim();
@@ -369,12 +383,12 @@
     const d19 = $('d19').value.trim();
     const valStr = neto > 0 ? neto : '';
 
-    $('c23').innerText = ['APROBADO', c14, d15, d16, d17, d18, d19, valStr].join('||');     
-    validarCamposObligatorios(false);   
+    $('c23').innerText = ['APROBADO', c14, d15, d16, d17, d18, d19, valStr].join('||');
+    validarCamposObligatorios(false);
   }
 
   function copiarGenerada() {
-    if (!validarCamposObligatorios(true)) return; 
+    if (!validarCamposObligatorios(true)) return;
     const trama = $('c23').innerText;
     navigator.clipboard.writeText(trama);
     const btn = $('btnCopy');
@@ -388,8 +402,6 @@
     document.querySelectorAll('input').forEach((i) => {
       i.value = '';
     });
-    $('b21').value = 'BOT';
-    actualizarModoEstado();
     $('metaContrato').classList.remove('contrato-alerta');
     $('metaEstampilla').style.display = 'none';
     $('cecoBox').style.display = 'none';
@@ -398,10 +410,10 @@
     $('dbStatus').innerText = 'Listo • Ruta: Documentos/centralpagos';
     setModo('NUMERO');
     recalcularTodo();
-    $('b9').focus();  
+    $('b9').focus();
   }
-    
-    // --- Registro de Eventos ---
+
+  // --- Registro de Eventos ---
   function registrarEventos() {
     $('btnTheme').addEventListener('click', alternarTema);
     $('btnExec').addEventListener('click', ejecutarProceso);
@@ -409,7 +421,7 @@
     $('btnModoFin').addEventListener('click', () => setModo('FINAL'));
     $('btnCopy').addEventListener('click', copiarGenerada);
     $('btnClear').addEventListener('click', borrarTodo);
-    
+
     $('btnPreset499').addEventListener('click', () => {
       $('c28').value = formatearCOP(CONFIG.descuentoFijo, 0);
       recalcularTodo();
@@ -424,12 +436,13 @@
       });
     });
 
-    $('b21').addEventListener('change', () => {
-      actualizarModoEstado();
-      if ($('b21').value !== 'MANUAL' && $('b9').value.trim()) {
-        parsearB9();
+    // Si borran el CASE, siempre se limpian N° Pago, PL, Mes y Año
+    $('f11').addEventListener('input', () => {
+      if (!$('f11').value.trim()) {
+        limpiarDatosCase();
+        $('metaBanner').style.display = 'none';
+        recalcularTodo();
       }
-      recalcularTodo();
     });
 
     $('b9').addEventListener('input', parsearB9);
@@ -447,16 +460,6 @@
       });
     });
 
-    // Botón manual para aplicar o reaplicar Total SS a Descuentos
-    $('btnAplicarSS').addEventListener('click', aplicarTotalSS);
-
-    ['g13', 'g14', 'g15', 'g16'].forEach((id) => {
-      $(id).addEventListener('input', () => {
-        actualizarLineasPago();
-        recalcularTodo();
-      });
-    });
-
     ['c14', 'd15', 'd16', 'd17', 'd18', 'd19'].forEach((id) => {
       $(id).addEventListener('input', recalcularTodo);
     });
@@ -469,6 +472,7 @@
   // --- Inicialización ---
   document.addEventListener('DOMContentLoaded', () => {
     inicializarTema();
+    bloquearCamposCase();
     registrarEventos();
     recalcularTodo();
   });

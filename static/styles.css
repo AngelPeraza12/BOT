@@ -603,3 +603,44 @@ input.input-vacio-alerta {
 input.input-vacio-alerta::placeholder {
   color: rgba(248, 113, 113, 0.85);
 }
+.desglose-box {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(128, 128, 128, 0.25);
+}
+
+.desglose-fila {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.18);
+}
+
+.desglose-fila:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.desglose-total {
+  font-size: 1rem;
+  color: #4ade80;
+}
+
+.btn-sec {
+  background: var(--accent);  
+  color: var(--surface);
+  border: 1px solid var(--border);
+  padding: 6px 12px;
+  border-radius: 7px;
+  font-weight: 600;
+  font-size: 0.92rem;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
